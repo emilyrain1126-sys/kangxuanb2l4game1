@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>答題大富翁</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto+Sans+TC', sans-serif;
+            background-color: #f1f5f9;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 1200px;
+            height: 98vh;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .board-container {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            gap: 4px;
+            width: 100%;
+            max-width: 460px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+            background: #cbd5e1;
+            padding: 6px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .cell {
+            background: white;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            position: relative;
+            font-weight: bold;
+            text-align: center;
+            padding: 2px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .cell-0 { background: #fca5a5 !important; color: #7f1d1d !important; border-bottom: 2px solid #ef4444 !important; }
+        .cell-chance { background: #fde047 !important; color: #854d0e !important; border-bottom: 2px solid #eab308 !important; }
+        .cell-fate { background: #93c5fd !important; color: #1e3a8a !important; border-bottom: 2px solid #3b82f6 !important; }
+        
+        .player-token {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            margin: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .dice {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+
+        .dice:active { transform: scale(0.9); }
+        .dice.rolling { animation: dice-spin 0.4s infinite linear; }
+
+        @keyframes dice-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+        }
+
+        .scroll-hide::-webkit-scrollbar { width: 4px; }
+        .scroll-hide::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        .tie-box { animation: pulse-bg 1s infinite alternate; }
+        @keyframes pulse-bg { from { background-color: #fef3c7; } to { background-color: #fffbeb; } }
+        
+        .rps-btn {
+            @apply flex flex-col items-center justify-center p-4 bg-white border-2 border-indigo-100 rounded-2xl hover:bg-indigo-50 hover:border-indigo-400 transition-all text-4xl shadow-sm active:scale-90;
+        }
+    </style>
+</head>
+<body class="p-2 md:p-4">
+
+    <div id="app">
+        <!-- 步驟一：座號設定 -->
+        <div id="setup-step-1" class="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100 h-full flex flex-col justify-center max-w-2xl mx-auto w-full">
+            <h1 class="text-3xl font-black text-center text-indigo-700 mb-2">答題大富翁 (1/3)</h1>
+            <p class="text-center text-gray-400 mb-8 font-bold text-sm uppercase tracking-widest">請輸入玩家座號 (3-7 人)</p>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-gray-700 font-black mb-2 text-sm uppercase tracking-wider">參與人數:</label>
+                    <select id="player-count" onchange="renderPlayerInputs()" class="w-full p-4 border-2 border-indigo-100 rounded-2xl outline-none font-black text-indigo-600 bg-indigo-50 shadow-sm text-lg">
+                        <option value="3">3 位玩家</option>
+                        <option value="4" selected>4 位玩家</option>
+                        <option value="5">5 位玩家)</option>
+                        <option value="6">6 位玩家</option>
+                        <option value="7">7 位玩家</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-black mb-3 text-sm">輸入號碼 (例如：1、2、3):</label>
+                    <div id="player-inputs" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <!-- JS 注入 -->
+                    </div>
+                </div>
+                <button onclick="goToStep2()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl transition-all text-xl shadow-lg active:scale-95">
+                    下一步：設定獎懲
+                </button>
+            </div>
+        </div>
+
+        <!-- 步驟二：獎懲分配 -->
+        <div id="setup-step-2" class="hidden bg-white rounded-3xl shadow-2xl p-8 border border-gray-100 h-full flex flex-col overflow-y-auto scroll-hide">
+            <h1 class="text-3xl font-black text-center text-indigo-700 mb-1">答題大富翁 (2/3)</h1>
+            <p id="step2-desc" class="text-center text-gray-400 mb-6 font-bold text-sm uppercase tracking-widest">設定排名獎懲分配</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- 獎勵區 -->
+                <div class="bg-green-50 p-5 rounded-2xl border border-green-100 shadow-inner">
+                    <h3 class="font-black text-green-700 mb-3 text-lg">🎁 選擇 2 個獎勵</h3>
+                    <div id="rewards-list" class="grid grid-cols-2 gap-2 mb-4">
+                        <!-- JS 注入 -->
+                    </div>
+                    <div id="reward-assignment" class="hidden space-y-3 p-3 bg-white rounded-xl border border-green-200">
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="w-20 font-bold text-green-700">第一名獲得:</span>
+                            <select id="rank1-reward" class="flex-1 p-1 border rounded-lg outline-none bg-white"></select>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="w-20 font-bold text-green-700">第二名獲得:</span>
+                            <select id="rank2-reward" class="flex-1 p-1 border rounded-lg outline-none bg-white"></select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 懲罰區 -->
+                <div class="bg-red-50 p-5 rounded-2xl border border-red-100 shadow-inner">
+                    <h3 id="penalty-title" class="font-black text-red-700 mb-3 text-lg">⚡ 選擇懲罰</h3>
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="custom-penalty-input" placeholder="手動輸入處罰內容" class="flex-1 p-2 border rounded-xl text-sm outline-none bg-white">
+                        <button onclick="addCustomPenalty()" class="bg-red-500 text-white px-4 rounded-xl text-sm font-black shadow-sm">新增</button>
+                    </div>
+                    <div id="punishments-list" class="grid grid-cols-1 gap-1 max-h-32 overflow-y-auto scroll-hide mb-4">
+                        <!-- JS 注入 -->
+                    </div>
+                    <div id="penalty-assignment" class="hidden space-y-3 p-3 bg-white rounded-xl border border-red-200">
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="w-24 font-bold text-red-700">最後一名執行:</span>
+                            <select id="rank-last-penalty" class="flex-1 p-1 border rounded-lg outline-none bg-white"></select>
+                        </div>
+                        <div id="second-last-penalty-row" class="flex items-center gap-2 text-sm">
+                            <span class="w-24 font-bold text-red-700">倒數第二執行:</span>
+                            <select id="rank-second-last-penalty" class="flex-1 p-1 border rounded-lg outline-none bg-white"></select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="backToStep1()" class="w-1/3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-4 rounded-2xl transition-all text-xl">回上一步</button>
+                <button onclick="preStartDraw()" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl transition-all text-xl shadow-lg active:scale-95">
+                    抽籤決定順序並開始！
+                </button>
+            </div>
+        </div>
+
+        <!-- 遊戲主畫面 -->
+        <div id="game-screen" class="hidden h-full grid lg:grid-cols-12 gap-4">
+            <!-- 側邊欄 -->
+            <div class="lg:col-span-4 flex flex-col gap-4 overflow-hidden">
+                <div class="bg-white p-4 rounded-2xl shadow-md border border-gray-50 flex-1 overflow-hidden flex flex-col">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xl font-black text-gray-800 tracking-tighter">🏆 積分排行</h2>
+                        <button onclick="confirmEnd()" class="bg-red-500 text-white text-[10px] px-3 py-1.5 rounded-lg font-black shadow-md active:scale-95">結束遊戲</button>
+                    </div>
+                    <div id="player-stats" class="space-y-2 overflow-y-auto flex-1 scroll-hide">
+                        <!-- JS 注入 -->
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-2xl shadow-md border border-gray-50 text-center">
+                    <div id="current-player-info" class="py-2 rounded-xl text-white font-black text-lg shadow-sm mb-3 transition-all">
+                        1號
+                    </div>
+                    <div class="flex items-center justify-around">
+                        <div id="dice" class="dice" onclick="rollDice()">🎲</div>
+                        <div class="text-left">
+                            <p class="text-gray-400 text-[10px] font-black uppercase">Roll Result</p>
+                            <div id="roll-result" class="font-black text-3xl text-indigo-600 italic h-8 leading-none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 棋盤區域 -->
+            <div class="lg:col-span-8 bg-white rounded-3xl shadow-xl border border-gray-100 flex items-center justify-center p-2">
+                <div id="game-board" class="board-container">
+                    <!-- 格子注入 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 彈窗系統 -->
+    <div id="modal-container" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden transform scale-100 transition-all">
+            <div id="modal-header" class="p-4 text-white font-black text-center text-xl">標題</div>
+            <div id="modal-body" class="p-6 text-center text-gray-700 text-md leading-relaxed max-h-[70vh] overflow-y-auto scroll-hide">內容</div>
+            <div id="modal-footer" class="p-4 bg-gray-50 flex justify-center border-t border-gray-100"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 核心數據 ---
+        const initialRewards = ["糖果 5 顆", "免罰寫1次", "平時加5分", "免課堂回答1次"];
+        let punishmentsPool = ["開合跳 10 次", "去任意其他組別進行飯撒", "講笑話(不可以冷場)", "學貓叫 30 秒", "唱一首兒歌"];
+        
+        const questionsPool = [
+            { q: "下列文句，何者用字完全正確？", a: ["所謂「謀事在人，成事在天」，再如何算計都沒有用", "人生時時要負責任，不可能完全推御的", "老太太過馬路步履顢跚，我們上前攙扶她", "小蓮對中樂透頭彩，彩券卻不小心被媽媽一股惱兒清掉了"], correct: 0 },
+            { q: "下列選項「　」中的字，何者讀音正確？", a: ["父親的「膀」子受傷，必須就醫：ㄅㄤˋ", "我無法完成這項「差」使：ㄔㄚ", "對於老闆交辦的事情，務必要妥「帖」處理：ㄊㄧㄝ", "外國友人對舉「箸」夾取食物很感興趣，大家都躍躍欲試：ㄓㄨㄛˊ"], correct: 2 },
+            { q: "「他給我□定了靠車門的一張椅子。」句中缺空處，不適合填入下列何字？", a: ["揀", "選", "擇", "抽"], correct: 3 },
+            { q: "朱自清在背影一文中提及：「到南京時，有朋友約去逛逛，勾留了一日。」其中「勾留」一詞可替換為下列何者？", a: ["勾搭", "勾連", "保留", "逗留"], correct: 3 },
+            { q: "下列文句「　」中詞語的使用，何者最恰當？", a: ["剛喝完青草茶又吃麻辣鍋，覺得「肚裡躊躇」，有點不舒服", "她一上公車就「東奔西走」的找座位，想趕快坐下來滑手機", "老年人「步履蹣跚」在所難免，因此建議出門要攜帶拐杖", "你剛出院，想去市區最好找人做伴，不要一個人「禍不單行」"], correct: 2 },
+            { q: "報載：「王君今晨才遭公司資遣，未料下午返家竟發現被闖空門。」以上報導可以用下列哪個成語當新聞標題？", a: ["樂極生悲", "禍不單行", "否極泰來", "險象環生"], correct: 1 },
+            { q: "表面上說的話，跟心裡想的意思正好相反，這樣的修辭技巧，稱為「倒反」。下列文句，何者沒有使用倒反修辭？", a: ["我現在想想，那時真是太聰明了", "你才捐十塊錢，真是太慷慨了", "你別著急！這我兩三下就可以弄好了", "優良學生競選，你才得五票，做人真是成功"], correct: 2 },
+            { q: "下列文句的語序經調整後，何者意思也跟著改變？", a: ["爸爸，您走吧→您走吧，爸爸", "我本來要去的，他不肯→我本來不肯的，他要去", "我走了，到那邊來信→到那邊來信，我走了", "進去吧，裡邊沒人→裡邊沒人，進去吧"], correct: 1 },
+            { q: "「拭乾了淚」中的「拭」字，其詞性與下列何者不同？", a: ["我也要「回」北京念書", "尚不大「難」", "趕緊去「攙」他", "「舉」箸提筆"], correct: 1 },
+            { q: "（甲）琦君　（乙）朱自清　（丙）王維　（丁）張騰蛟　（戊）李白。上述作者為現代文學作家的是哪幾位？", a: ["甲乙丁", "丙丁戊", "甲丁戊", "乙丙丁"], correct: 0},
+            { q: "朱自清在背影一文中寫下先前對父親的看法：「總覺他說話不大漂亮」，句中「漂亮」是指說話的哪一個方面而言？", a: ["說話的音調", "說話的速度", "說話的技巧", "說話的音量"], correct: 2 },
+            { q: "原本朱自清的父親不陪朱自清過江，但他躊躇了一會兒，終於還是決定自己送他去。朱自清兩三回勸他不必去，朱自清的父親只是說：「不要緊，他們去不好！」這是表示父親如何？", a: ["無所謂", "很迂腐", "不明白", "不放心"], correct: 3 },
+            { q: "「我們過了江，進了車站，我買票，他忙著照看行李。行李太多了，得向腳夫行些小費才可過去，他便又忙著和他們講價錢。」根據這段文字，他（作者的父親）又是「忙著照看行李」，又是「忙著和他們（腳夫）講價錢」，可以推知下列何者？", a: ["父親喜歡與人打交道", "父親曾在車站服務過", "父親甘心為兒子付出", "父親一心望子成龍"], correct: 2 },
+            { q: "朱自清：「託他們直是白託。」這句話的意思為何？", a: ["託他們不必花錢", "託他們沒用", "他們一定會幫忙，不必拜託", "要準備禮物才能拜託人家"], correct: 1 },
+            { q: "「我這樣大年紀的人，難道還不能料理自己麼？」這句話顯露出作者當時的何種心情？", a: ["自以為是", "全力以赴", "反應敏捷", "廚藝精湛"], correct: 0 },
+            { q: "朱自清看到父親買橘子、爬月臺的背影而流淚，其原因為何？", a: ["為父親違反交通規則而難過", "為父親的安危捏一把冷汗", "為父親的愛心而感動", "為即將別離而感傷"], correct: 2 },
+            { q: "「（父親）過一會說：『我走了，到那邊來信！』我望著他（從車廂）走出去。」此時父親對孩子最牽掛的事是什麼？", a: ["此去能否平安抵達學校", "父子何時得以再相聚", "課業壓力是否繁重", "能否習慣異地生活"], correct: 0 },
+            { q: "朱自清的父親來信說：「大約大去之期不遠矣。」其意思為何？", a: ["恐怕不久於人世了", "離回家鄉的日子近了", "約定出國見面的日子快到了", "離學成歸國的日子近了"], correct: 0 },
+            { q: "背影是表達父愛的作品，下列何者無法看出「父愛」的表現？", a: ["他再三囑咐茶房，甚是仔細", "他肥胖的身子向左微傾，顯出努力的樣子", "將橘子一股腦兒放在我的皮大衣上", "近幾年來，父親和我都是東奔西走"], correct: 3 },
+            { q: "「正當我想起：一個頭髮已經斑白的農夫，還是在披星戴月地忙碌，為飢寒所逼迫，為風日所摧損，前面也只剩著短短的歲月了，便不由得悲傷起來。」（李廣田 悲哀的玩具）關於這段文字所表露的情感，下列敘述何者錯誤？", a: ["稱讚操勞農事的父親，老當益壯", "對父親一生的辛勞表示心疼，也心存感恩", "感傷父親已日薄西山", "與朱自清所說「唉！我不知何時再能與他相見」的情感類似"], correct: 0 }
+        ];
+
+        let players = [];
+        let currentPlayerIndex = 0;
+        let selectedRewards = [];
+        let selectedPunishments = [];
+        let rewardRankMap = { 1: "無", 2: "無" };
+        let penaltyRankMap = { last: "無", secondLast: "無" };
+        let isRolling = false;
+        const TOTAL_CELLS = 20;
+
+        const CHANCE_CELLS = [3, 10, 17];
+        const FATE_CELLS = [6, 13, 19];
+
+        window.onload = () => { renderPlayerInputs(); createBoard(); };
+
+        function renderPlayerInputs() {
+            const count = parseInt(document.getElementById('player-count').value);
+            const container = document.getElementById('player-inputs');
+            container.innerHTML = '';
+            for(let i=0; i<count; i++) {
+                container.innerHTML += `
+                    <div class="flex items-center gap-2 bg-indigo-50 p-2 rounded-xl border border-indigo-100 shadow-inner">
+                        <span class="text-[10px] font-black text-indigo-300">P${i+1}</span>
+                        <input type="number" id="seat-p${i}" placeholder="座號" class="w-full p-2 border rounded-lg text-sm font-black outline-none bg-white">
+                    </div>
+                `;
+            }
+        }
+
+        function goToStep2() {
+            const count = parseInt(document.getElementById('player-count').value);
+            let seats = [];
+            for(let i=0; i<count; i++) {
+                const val = document.getElementById(`seat-p${i}`).value;
+                if(!val) { showModal("提示", "請輸入所有玩家的座號！", "bg-yellow-500"); return; }
+                seats.push(val);
+            }
+            if(new Set(seats).size !== seats.length) { showModal("提示", "座號不可重複！", "bg-yellow-500"); return; }
+            
+            // 更新步驟二說明與懲罰數量顯示
+            const desc = document.getElementById('step2-desc');
+            const penaltyTitle = document.getElementById('penalty-title');
+            const secondLastRow = document.getElementById('second-last-penalty-row');
+            
+            if (count === 3) {
+                desc.innerText = "選擇 2 個獎勵與 1 個懲罰";
+                penaltyTitle.innerText = "⚡ 選擇 1 個懲罰";
+                secondLastRow.classList.add('hidden');
+            } else {
+                desc.innerText = "選擇 2 個獎勵與 2 個懲罰";
+                penaltyTitle.innerText = "⚡ 選擇 2 個懲罰";
+                secondLastRow.classList.remove('hidden');
+            }
+
+            document.getElementById('setup-step-1').classList.add('hidden');
+            document.getElementById('setup-step-2').classList.remove('hidden');
+            renderSetupLists();
+        }
+
+        function backToStep1() { document.getElementById('setup-step-2').classList.add('hidden'); document.getElementById('setup-step-1').classList.remove('hidden'); }
+
+        function addCustomPenalty() {
+            const input = document.getElementById('custom-penalty-input');
+            if (input.value.trim()) { punishmentsPool.push(input.value.trim()); input.value = ''; renderSetupLists(); }
+        }
+
+        function renderSetupLists() {
+            const rList = document.getElementById('rewards-list'), pList = document.getElementById('punishments-list');
+            rList.innerHTML = initialRewards.map(r => `<label class="flex items-center space-x-2 bg-white p-2 rounded-lg border text-xs cursor-pointer shadow-sm"><input type="checkbox" name="reward" value="${r}" onchange="handleRewardChange()" class="w-3 h-3 text-green-600"> <span class="truncate">${r}</span></label>`).join('');
+            pList.innerHTML = punishmentsPool.map(p => `<label class="flex items-center space-x-2 bg-white p-2 rounded-lg border text-xs cursor-pointer shadow-sm"><input type="checkbox" name="punishment" value="${p}" onchange="handlePenaltyChange()" class="w-3 h-3 text-red-600"> <span class="truncate">${p}</span></label>`).join('');
+        }
+
+        function handleRewardChange() {
+            const selected = Array.from(document.querySelectorAll('input[name="reward"]:checked')).map(el => el.value);
+            if (selected.length > 2) { document.querySelectorAll('input[name="reward"]:checked')[0].checked = false; handleRewardChange(); return; }
+            selectedRewards = selected;
+            const div = document.getElementById('reward-assignment');
+            if (selected.length === 2) {
+                div.classList.remove('hidden');
+                document.getElementById('rank1-reward').innerHTML = selected.map(r => `<option value="${r}">${r}</option>`).join('');
+                document.getElementById('rank2-reward').innerHTML = selected.map(r => `<option value="${r}">${r}</option>`).join('');
+                document.getElementById('rank2-reward').selectedIndex = 1;
+            } else div.classList.add('hidden');
+        }
+
+        function handlePenaltyChange() {
+            const count = parseInt(document.getElementById('player-count').value);
+            const limit = (count === 3) ? 1 : 2;
+            const selected = Array.from(document.querySelectorAll('input[name="punishment"]:checked')).map(el => el.value);
+            
+            if (selected.length > limit) { 
+                document.querySelectorAll('input[name="punishment"]:checked')[0].checked = false; 
+                handlePenaltyChange(); 
+                return; 
+            }
+            
+            selectedPunishments = selected;
+            const div = document.getElementById('penalty-assignment');
+            if (selected.length === limit) {
+                div.classList.remove('hidden');
+                document.getElementById('rank-last-penalty').innerHTML = selected.map(p => `<option value="${p}">${p}</option>`).join('');
+                if (limit === 2) {
+                    document.getElementById('rank-second-last-penalty').innerHTML = selected.map(p => `<option value="${p}">${p}</option>`).join('');
+                    document.getElementById('rank-second-last-penalty').selectedIndex = 1;
+                }
+            } else div.classList.add('hidden');
+        }
+
+        function preStartDraw() {
+            const count = parseInt(document.getElementById('player-count').value);
+            const penaltyLimit = (count === 3) ? 1 : 2;
+            
+            if (selectedRewards.length < 2 || selectedPunishments.length < penaltyLimit) { 
+                showModal("提示", `請選好 2 個獎勵與 ${penaltyLimit} 個懲罰項目！`, "bg-yellow-500"); 
+                return; 
+            }
+            
+            rewardRankMap[1] = document.getElementById('rank1-reward').value;
+            rewardRankMap[2] = document.getElementById('rank2-reward').value;
+            penaltyRankMap.last = document.getElementById('rank-last-penalty').value;
+            if (count > 3) penaltyRankMap.secondLast = document.getElementById('rank-second-last-penalty').value;
+
+            let rawSeats = []; for(let i=0; i<count; i++) rawSeats.push(document.getElementById(`seat-p${i}`).value);
+            
+            let drawBody = `<div class="flex flex-col items-center gap-4 py-8"><p class="text-gray-500 font-bold mb-4 italic">🎲 正在隨機決定先後順序...</p><div id="shuffle-display" class="flex flex-wrap justify-center gap-3">${rawSeats.map(s => `<div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center font-black text-indigo-600 text-lg border-2 border-indigo-200">${s}</div>`).join('')}</div></div>`;
+            showModal("遊戲開始抽籤", drawBody, "bg-indigo-600", null, true);
+            
+            let counter = 0;
+            const interval = setInterval(() => {
+                const disp = document.getElementById('shuffle-display'); if(!disp) return clearInterval(interval);
+                const items = Array.from(disp.children).sort(() => Math.random() - 0.5); disp.innerHTML = ''; items.forEach(it => disp.appendChild(it));
+                if(++counter > 15) {
+                    clearInterval(interval);
+                    const shuffled = rawSeats.sort(() => Math.random() - 0.5);
+                    const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#475569'];
+                    players = shuffled.map((s, idx) => ({ id: idx, seatNo: s, color: colors[idx % colors.length], pos: 0, score: 0, skipNextTurn: false }));
+                    
+                    disp.innerHTML = players.map((p, i) => `<div class="w-14 h-14 bg-green-500 text-white rounded-xl flex flex-col items-center justify-center font-black shadow-lg animate-bounce text-xs"><span class="text-[8px] opacity-70">#${i+1}</span><span>${p.seatNo}號</span></div>`).join('');
+                    document.getElementById('modal-footer').innerHTML = `<button onclick="closeModal(); document.getElementById('setup-step-2').classList.add('hidden'); document.getElementById('game-screen').classList.remove('hidden'); updateUI(); placeTokens();" class="bg-green-600 text-white px-10 py-3 rounded-2xl font-black shadow-lg">進入遊戲！</button>`;
+                }
+            }, 100);
+        }
+
+        // --- 遊戲邏輯 ---
+        function createBoard() {
+            const board = document.getElementById('game-board'); board.innerHTML = '';
+            const posMap = [];
+            for(let i=1; i<=6; i++) posMap.push({r:1, c:i}); for(let i=2; i<=5; i++) posMap.push({r:i, c:6});
+            for(let i=6; i>=1; i--) posMap.push({r:6, c:i}); for(let i=5; i>=2; i--) posMap.push({r:i, c:1});
+            posMap.forEach((pos, idx) => {
+                const cell = document.createElement('div');
+                cell.className = `cell cell-${idx} col-start-${pos.c} row-start-${pos.r} shadow-sm`;
+                let type = "📚 題目";
+                if(idx === 0) { type = "🚩 起點"; cell.classList.add('cell-0'); }
+                else if(CHANCE_CELLS.includes(idx)) { type = "❓ 機會"; cell.classList.add('cell-chance'); }
+                else if(FATE_CELLS.includes(idx)) { type = "✨ 命運"; cell.classList.add('cell-fate'); }
+                cell.innerHTML = `<div class="mb-1 opacity-60">${type}</div><div id="tokens-${idx}" class="flex flex-wrap justify-center gap-0.5"></div>`;
+                board.appendChild(cell);
+            });
+        }
+
+        function updateUI() {
+            const stats = document.getElementById('player-stats');
+            stats.innerHTML = [...players].sort((a,b) => b.score - a.score).map((p, idx) => `
+                <div class="p-3 rounded-xl bg-gray-50 border-l-8 flex justify-between items-center shadow-sm" style="border-color: ${p.color}">
+                    <span class="font-black text-xs text-gray-800">${p.seatNo}號</span>
+                    <span class="bg-white px-3 py-1 rounded-full text-[10px] font-black shadow-sm">${p.score} 分</span>
+                </div>
+            `).join('');
+            const p = players[currentPlayerIndex];
+            const info = document.getElementById('current-player-info');
+            info.innerText = `輪到：${p.seatNo}號`;
+            info.style.backgroundColor = p.color;
+        }
+
+        function placeTokens() {
+            for(let i=0; i<TOTAL_CELLS; i++) { const h = document.getElementById(`tokens-${i}`); if (h) h.innerHTML = ''; }
+            players.forEach(p => {
+                const h = document.getElementById(`tokens-${p.pos}`);
+                if (h) { const t = document.createElement('div'); t.className = 'player-token'; t.style.backgroundColor = p.color; t.innerText = p.seatNo; h.appendChild(t); }
+            });
+        }
+
+        function rollDice() {
+            if (isRolling) return;
+            const p = players[currentPlayerIndex];
+            if (p.skipNextTurn) { p.skipNextTurn = false; showModal("暫停一回合", `${p.seatNo}號 本回合停止一次！`, "bg-gray-500", nextTurn); return; }
+            isRolling = true;
+            const d = document.getElementById('dice'), res = document.getElementById('roll-result');
+            d.classList.add('rolling'); res.innerText = "";
+            setTimeout(() => {
+                const roll = Math.floor(Math.random() * 6) + 1;
+                d.classList.remove('rolling'); d.innerText = ['⚀','⚁','⚂','⚃','⚄','⚅'][roll-1];
+                res.innerText = `${roll} 步`;
+                p.pos = (p.pos + roll) % TOTAL_CELLS; placeTokens();
+                setTimeout(() => handleCellLanding(p.pos), 600);
+            }, 800);
+        }
+
+        function handleCellLanding(pos) {
+            if (pos === 0) {
+                showModal("🚩 起點", "路過起點，補給積分！<br><span class='text-2xl font-black text-green-600'>積分 +50</span>", "bg-green-500", () => { players[currentPlayerIndex].score += 50; nextTurn(); });
+            } else if (CHANCE_CELLS.includes(pos)) {
+                handleChanceEvent();
+            } else if (FATE_CELLS.includes(pos)) {
+                handleFateEvent();
+            } else handleQuiz();
+        }
+
+        function handleQuiz() {
+            const q = questionsPool[Math.floor(Math.random() * questionsPool.length)], p = players[currentPlayerIndex];
+            let body = `<p class="text-xl mb-4 font-black text-gray-800">${q.q}</p><div class="grid gap-2">`;
+            q.a.forEach((ans, i) => { body += `<button onclick="checkAnswer(${i}, ${q.correct})" class="w-full py-4 px-6 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-100 rounded-2xl text-left font-black text-indigo-700 active:scale-95 transition-all font-bold">${i+1}. ${ans}</button>`; });
+            body += `</div>`;
+            showModal(`${p.seatNo}號 的挑戰`, body, "bg-indigo-600", null, true);
+        }
+
+        window.checkAnswer = (choice, correct) => {
+            if (choice === correct) { showModal("答對了！🎉", `<span class="text-3xl font-black text-green-600">+100 分</span>`, "bg-green-500", () => { players[currentPlayerIndex].score += 100; nextTurn(); }); }
+            else { showModal("答錯了...😢", `<span class="text-3xl font-black text-red-600">-50 分</span>`, "bg-red-500", () => { players[currentPlayerIndex].score -= 50; nextTurn(); }); }
+        };
+
+        function handleChanceEvent() {
+            let body = `<p class="mb-6 font-bold text-lg text-gray-700">與系統猜拳大賽！贏了可獲得 <span class="text-green-600">+150 分</span></p>`;
+            body += `<div class="grid grid-cols-3 gap-4">
+                <button onclick="playRPS(0)" class="rps-btn">✊<span class="text-xs mt-2">石頭</span></button>
+                <button onclick="playRPS(1)" class="rps-btn">✋<span class="text-xs mt-2">布</span></button>
+                <button onclick="playRPS(2)" class="rps-btn">✌️<span class="text-xs mt-2">剪刀</span></button>
+            </div>`;
+            showModal("機會 ❓ 猜拳挑戰", body, "bg-yellow-500", null, true);
+        }
+
+        window.playRPS = (pChoice) => {
+            const sChoice = Math.floor(Math.random() * 3);
+            const icons = ["✊ 石頭", "✋ 布", "✌️ 剪刀"];
+            const p = players[currentPlayerIndex];
+            let resultText = `你出：${icons[pChoice]}<br>系統出：${icons[sChoice]}<br><br>`;
+            if (pChoice === sChoice) resultText += `<span class="text-2xl font-black text-gray-600">平手！無事發生。</span>`;
+            else if ((pChoice === 0 && sChoice === 2) || (pChoice === 1 && sChoice === 0) || (pChoice === 2 && sChoice === 1)) {
+                resultText += `<span class="text-2xl font-black text-green-600">你贏了！ 積分 +150！</span>`;
+                p.score += 150;
+            } else resultText += `<span class="text-2xl font-black text-red-600">你輸了... 無事發生。</span>`;
+            showModal("猜拳結果", resultText, "bg-indigo-600", nextTurn);
+        };
+
+        function handleFateEvent() {
+            const p = players[currentPlayerIndex];
+            const events = [
+                { t: "【食破天驚】天上掉下洋芋片！積分 +150 分！", action: () => { p.score += 150; nextTurn(); } },
+                { t: "【叫他罰寫】舉報有人上課說髒話，指定他扣除 150 分！", action: () => promptTargetSelect("扣除 150 分", (t) => { t.score -= 150; nextTurn(); }) },
+                { t: "【姍姍來遲】說好的12點泛舟呢？指定一位玩家下一輪暫停行動！", action: () => promptTargetSelect("暫停一回合", (t) => { t.skipNextTurn = true; nextTurn(); }) },
+                { t: "【財富均衡】和一位指定玩家平分芭樂(劃掉)分數！", action: () => promptTargetSelect("平均積分", (t) => { const avg = Math.floor((p.score + t.score) / 2); p.score = avg; t.score = avg; nextTurn(); }) },
+                { t: "【和平使者】偷偷把營養午餐的螢光咖哩換掉，所有人向你致敬，每人各給你 50 分！", action: () => { players.forEach(o => { if(o.id !== p.id) { o.score -= 50; p.score += 50; } }); nextTurn(); } },
+                { t: "【侏儸紀世界】突然出現翼手龍，偷走你 100 分(此分數不歸翼手龍所有)。", action: () => { p.score -= 100; nextTurn(); } }
+            ];
+            const ev = events[Math.floor(Math.random() * events.length)];
+            showModal("命運 ✨ 特別事件", ev.t, "bg-blue-600", ev.action);
+        }
+
+        function promptTargetSelect(label, callback) {
+            const p = players[currentPlayerIndex], others = players.filter(o => o.id !== p.id);
+            let body = `<p class="mb-4 font-bold text-gray-700">請選擇對象執行 [${label}]：</p><div class="grid grid-cols-2 gap-3">`;
+            others.forEach(o => { body += `<button onclick="executeTarget(${o.id})" class="p-3 border-2 rounded-xl font-black text-sm" style="border-color:${o.color}; color:${o.color}">${o.seatNo}號 (${o.score}分)</button>`; });
+            body += `</div>`;
+            window.tempCB = callback; showModal("選擇指定目標", body, "bg-gray-800", null, true);
+        }
+
+        window.executeTarget = (tid) => { closeModal(); if(window.tempCB) window.tempCB(players.find(o => o.id === tid)); };
+
+        function nextTurn() { currentPlayerIndex = (currentPlayerIndex + 1) % players.length; isRolling = false; updateUI(); }
+        
+        function confirmEnd() { showModal("遊戲結束", "確定要結束遊戲並結算最終名次嗎？", "bg-gray-700", endGame); }
+
+        function endGame() {
+            const scoreGroups = {}; 
+            players.forEach(p => { 
+                if(!scoreGroups[p.score]) scoreGroups[p.score] = []; 
+                scoreGroups[p.score].push(p); 
+            });
+            const tiedScores = Object.keys(scoreGroups).map(Number).filter(s => scoreGroups[s].length > 1).sort((a,b) => b-a);
+            
+            if (tiedScores.length > 0) {
+                let tieBody = `<div class="flex flex-col items-center gap-4 py-6"><p class="text-indigo-600 font-black animate-pulse text-lg">⚖️ 檢測到積分相同！局部抽籤決定名次中...</p><div class="space-y-3 w-full">${tiedScores.map(s => `<div class="p-3 bg-amber-50 rounded-xl border border-amber-200 tie-box"><div id="group-${s}" class="flex flex-wrap justify-center gap-2">${scoreGroups[s].map(p => `<div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center font-black border shadow-sm">${p.seatNo}號</div>`).join('')}</div></div>`).join('')}</div></div>`;
+                showModal("公平結算抽籤", tieBody, "bg-indigo-600", null, true);
+                
+                let shuffles = 0; 
+                const interval = setInterval(() => {
+                    tiedScores.forEach(s => { 
+                        const el = document.getElementById(`group-${s}`); 
+                        if(!el) return; 
+                        const items = Array.from(el.children).sort(() => Math.random() - 0.5); 
+                        el.innerHTML = ''; items.forEach(it => el.appendChild(it)); 
+                    });
+                    if(++shuffles > 15) { 
+                        clearInterval(interval); 
+                        const finalOrder = []; 
+                        const sorted = Object.keys(scoreGroups).map(Number).sort((a,b) => b-a); 
+                        sorted.forEach(s => finalOrder.push(...scoreGroups[s].sort(() => Math.random() - 0.5))); 
+                        setTimeout(() => renderFinal(finalOrder), 300);
+                    }
+                }, 100);
+            } else {
+                renderFinal([...players].sort((a, b) => b.score - a.score));
+            }
+        }
+
+        function renderFinal(rank) {
+            const pCount = rank.length;
+            let body = `<div class="text-left space-y-3">`;
+            
+            rank.forEach((p, idx) => {
+                let prize = "😐 安全過關"; 
+                let color = "text-gray-400";
+                
+                // 獎懲分配邏輯
+                if(idx === 0) { 
+                    prize = `👑 <b>冠軍：【${rewardRankMap[1]}】</b>`; 
+                    color = "text-green-600"; 
+                }
+                else if(idx === 1) { 
+                    prize = `🥈 <b>亞軍：【${rewardRankMap[2]}】</b>`; 
+                    color = "text-blue-600"; 
+                }
+                else if(idx === pCount - 1) { 
+                    prize = `💀 <b>墊底：【${penaltyRankMap.last}】</b>`; 
+                    color = "text-red-600"; 
+                }
+                else if(pCount > 3 && idx === pCount - 2) { 
+                    prize = `⚠️ <b>倒二：【${penaltyRankMap.secondLast}】</b>`; 
+                    color = "text-orange-600"; 
+                }
+                
+                body += `<div class="p-4 border-2 rounded-2xl bg-white shadow-sm flex items-center justify-between" style="border-color:${p.color}">
+                    <div><h4 class="font-black text-xs">第 ${idx+1} 名 - ${p.seatNo}號</h4><p class="${color} text-xs mt-1">${prize}</p></div>
+                    <div class="font-black text-sm text-indigo-500">${p.score}分</div>
+                </div>`;
+            });
+            body += `</div>`;
+            
+            const m = document.getElementById('modal-container');
+            document.getElementById('modal-header').innerText = "🏆 最終結算清單";
+            document.getElementById('modal-header').className = "p-4 text-white font-black text-center text-xl bg-gray-800";
+            document.getElementById('modal-body').innerHTML = body;
+            document.getElementById('modal-footer').innerHTML = `<button onclick="location.reload()" class="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-lg">回首頁再玩一次</button>`;
+            m.classList.remove('hidden');
+        }
+
+        function showModal(title, content, headerClass, onClose, hideFooter = false) {
+            const m = document.getElementById('modal-container');
+            document.getElementById('modal-header').innerHTML = title;
+            document.getElementById('modal-header').className = `p-4 text-white font-black text-center text-xl ${headerClass}`;
+            document.getElementById('modal-body').innerHTML = content;
+            const f = document.getElementById('modal-footer'); f.innerHTML = '';
+            if (!hideFooter) { 
+                const b = document.createElement('button'); 
+                b.className = "bg-indigo-600 text-white px-8 py-2 rounded-xl font-black shadow-md"; 
+                b.innerText = "確定"; 
+                b.onclick = () => { m.classList.add('hidden'); if(onClose) onClose(); }; 
+                f.appendChild(b); 
+            }
+            m.classList.remove('hidden');
+        }
+        function closeModal() { document.getElementById('modal-container').classList.add('hidden'); }
+    </script>
+</body>
+</html>
