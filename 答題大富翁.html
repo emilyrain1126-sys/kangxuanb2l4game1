@@ -35,8 +35,8 @@
             grid-template-rows: repeat(6, 1fr);
             gap: 4px;
             width: 100%;
-            max-width: min(420px, 75vw);
-            max-height: min(420px, 75vh);
+            max-width: min(450px, 80vw);
+            max-height: min(450px, 80vh);
             aspect-ratio: 1 / 1;
             margin: 0 auto;
             background: #cbd5e1;
@@ -52,11 +52,11 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 0.6rem;
+            font-size: 0.9rem; /* 稍微放大字體 */
             position: relative;
             font-weight: bold;
             text-align: center;
-            padding: 2px;
+            padding: 4px;
             border-bottom: 2px solid #e2e8f0;
         }
 
@@ -65,8 +65,8 @@
         .cell-fate { background: #93c5fd !important; color: #1e3a8a !important; border-bottom: 2px solid #3b82f6 !important; }
         
         .player-token {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             border: 1px solid white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
@@ -74,7 +74,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 8px;
+            font-size: 10px;
             color: white;
             font-weight: bold;
         }
@@ -133,11 +133,11 @@
                 <div>
                     <label class="block text-gray-700 font-black mb-2 text-sm uppercase">參與人數:</label>
                     <select id="player-count" onchange="renderPlayerInputs()" class="w-full p-4 border-2 border-indigo-100 rounded-2xl outline-none font-black text-indigo-600 bg-indigo-50 shadow-sm text-lg">
-                        <option value="3">3 位玩家 (1個懲罰)</option>
-                        <option value="4" selected>4 位玩家 (2個懲罰)</option>
-                        <option value="5">5 位玩家 (2個懲罰)</option>
-                        <option value="6">6 位玩家 (2個懲罰)</option>
-                        <option value="7">7 位玩家 (2個懲罰)</option>
+                        <option value="3">3 位玩家</option>
+                        <option value="4" selected>4 位玩家</option>
+                        <option value="5">5 位玩家</option>
+                        <option value="6">6 位玩家</option>
+                        <option value="7">7 位玩家</option>
                     </select>
                 </div>
                 <div>
@@ -161,7 +161,7 @@
                 <!-- 獎勵區 -->
                 <div class="bg-green-50 p-4 rounded-2xl border border-green-100 shadow-inner">
                     <h3 class="font-black text-green-700 mb-3 text-md flex items-center">🎁 選擇 2 個獎勵</h3>
-                    <div id="rewards-list" class="grid grid-cols-2 gap-2 mb-4">
+                    <div id="rewards-list" class="grid grid-cols-2 gap-2 mb-4 max-h-32 overflow-y-auto scroll-hide p-1">
                         <!-- JS 注入 -->
                     </div>
                     <div id="reward-assignment" class="hidden space-y-2 p-3 bg-white rounded-xl border border-green-200 shadow-sm">
@@ -183,7 +183,7 @@
                         <input type="text" id="custom-penalty-input" placeholder="手動輸入" class="flex-1 p-2 border rounded-xl text-xs outline-none bg-white">
                         <button onclick="addCustomPenalty()" class="bg-red-500 text-white px-3 rounded-xl text-xs font-black shadow-sm">新增</button>
                     </div>
-                    <div id="punishments-list" class="grid grid-cols-1 gap-1 max-h-32 overflow-y-auto scroll-hide mb-4">
+                    <div id="punishments-list" class="grid grid-cols-1 gap-1 max-h-32 overflow-y-auto scroll-hide mb-4 p-1">
                         <!-- JS 注入 -->
                     </div>
                     <div id="penalty-assignment" class="hidden space-y-2 p-3 bg-white rounded-xl border border-red-200 shadow-sm">
@@ -199,7 +199,7 @@
                 </div>
             </div>
 
-            <div class="flex gap-4 mt-auto">
+            <div class="flex gap-4 mt-auto pb-6">
                 <button onclick="backToStep1()" class="w-1/3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-4 rounded-2xl transition-all text-lg">回上一步</button>
                 <button onclick="preStartDraw()" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl transition-all text-lg shadow-lg active:scale-95">
                     決定順序並開始
@@ -453,7 +453,7 @@
                 if(idx === 0) { type = "🚩 起點"; cell.classList.add('cell-0'); }
                 else if(CHANCE_CELLS.includes(idx)) { type = "❓ 機會"; cell.classList.add('cell-chance'); }
                 else if(FATE_CELLS.includes(idx)) { type = "✨ 命運"; cell.classList.add('cell-fate'); }
-                cell.innerHTML = `<div class="mb-1 opacity-60 scale-75 uppercase text-[8px]">${type}</div><div id="tokens-${idx}" class="flex flex-wrap justify-center gap-0.5"></div>`;
+                cell.innerHTML = `<div class="mb-1 opacity-80 font-bold text-[11px] md:text-xs uppercase">${type}</div><div id="tokens-${idx}" class="flex flex-wrap justify-center gap-0.5"></div>`;
                 board.appendChild(cell);
             });
         }
