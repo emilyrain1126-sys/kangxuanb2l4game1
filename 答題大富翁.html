@@ -13,6 +13,7 @@
             background-color: #f1f5f9;
             overflow: hidden;
             height: 100vh;
+            margin: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -21,19 +22,21 @@
         #app {
             width: 100%;
             max-width: 1200px;
-            height: 98vh;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            padding: 10px;
         }
 
+        /* 棋盤縮放控制 */
         .board-container {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
             grid-template-rows: repeat(6, 1fr);
             gap: 4px;
             width: 100%;
-            max-width: 460px;
+            max-width: min(420px, 75vw);
+            max-height: min(420px, 75vh);
             aspect-ratio: 1 / 1;
             margin: 0 auto;
             background: #cbd5e1;
@@ -49,7 +52,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             position: relative;
             font-weight: bold;
             text-align: center;
@@ -62,8 +65,8 @@
         .cell-fate { background: #93c5fd !important; color: #1e3a8a !important; border-bottom: 2px solid #3b82f6 !important; }
         
         .player-token {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
             border: 1px solid white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
@@ -71,14 +74,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 9px;
+            font-size: 8px;
             color: white;
             font-weight: bold;
         }
 
         .dice {
-            width: 50px;
-            height: 50px;
+            width: 55px;
+            height: 55px;
             background: white;
             border-radius: 10px;
             display: flex;
@@ -113,25 +116,28 @@
         .rps-btn {
             @apply flex flex-col items-center justify-center p-4 bg-white border-2 border-indigo-100 rounded-2xl hover:bg-indigo-50 hover:border-indigo-400 transition-all text-4xl shadow-sm active:scale-90;
         }
+
+        /* 確保全屏高度下的切換 */
+        .screen-hidden { display: none !important; }
     </style>
 </head>
-<body class="p-2 md:p-4">
+<body class="p-1 md:p-4">
 
     <div id="app">
         <!-- 步驟一：座號設定 -->
-        <div id="setup-step-1" class="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100 h-full flex flex-col justify-center max-w-2xl mx-auto w-full">
+        <div id="setup-step-1" class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border border-gray-100 h-full flex flex-col justify-center max-w-2xl mx-auto w-full overflow-y-auto scroll-hide">
             <h1 class="text-3xl font-black text-center text-indigo-700 mb-2">答題大富翁 (1/3)</h1>
-            <p class="text-center text-gray-400 mb-8 font-bold text-sm uppercase tracking-widest">請輸入玩家座號 (3-7 人)</p>
+            <p class="text-center text-gray-400 mb-8 font-bold text-sm">請輸入玩家座號 (支援 3-7 人)</p>
             
             <div class="space-y-6">
                 <div>
-                    <label class="block text-gray-700 font-black mb-2 text-sm uppercase tracking-wider">參與人數:</label>
+                    <label class="block text-gray-700 font-black mb-2 text-sm uppercase">參與人數:</label>
                     <select id="player-count" onchange="renderPlayerInputs()" class="w-full p-4 border-2 border-indigo-100 rounded-2xl outline-none font-black text-indigo-600 bg-indigo-50 shadow-sm text-lg">
-                        <option value="3">3 位玩家</option>
-                        <option value="4" selected>4 位玩家</option>
-                        <option value="5">5 位玩家)</option>
-                        <option value="6">6 位玩家</option>
-                        <option value="7">7 位玩家</option>
+                        <option value="3">3 位玩家 (1個懲罰)</option>
+                        <option value="4" selected>4 位玩家 (2個懲罰)</option>
+                        <option value="5">5 位玩家 (2個懲罰)</option>
+                        <option value="6">6 位玩家 (2個懲罰)</option>
+                        <option value="7">7 位玩家 (2個懲罰)</option>
                     </select>
                 </div>
                 <div>
@@ -147,90 +153,97 @@
         </div>
 
         <!-- 步驟二：獎懲分配 -->
-        <div id="setup-step-2" class="hidden bg-white rounded-3xl shadow-2xl p-8 border border-gray-100 h-full flex flex-col overflow-y-auto scroll-hide">
+        <div id="setup-step-2" class="screen-hidden bg-white rounded-3xl shadow-2xl p-6 md:p-8 border border-gray-100 h-full flex flex-col overflow-y-auto scroll-hide">
             <h1 class="text-3xl font-black text-center text-indigo-700 mb-1">答題大富翁 (2/3)</h1>
-            <p id="step2-desc" class="text-center text-gray-400 mb-6 font-bold text-sm uppercase tracking-widest">設定排名獎懲分配</p>
+            <p id="step2-desc" class="text-center text-gray-400 mb-6 font-bold text-sm uppercase">設定排名獎懲分配</p>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <!-- 獎勵區 -->
-                <div class="bg-green-50 p-5 rounded-2xl border border-green-100 shadow-inner">
-                    <h3 class="font-black text-green-700 mb-3 text-lg">🎁 選擇 2 個獎勵</h3>
+                <div class="bg-green-50 p-4 rounded-2xl border border-green-100 shadow-inner">
+                    <h3 class="font-black text-green-700 mb-3 text-md flex items-center">🎁 選擇 2 個獎勵</h3>
                     <div id="rewards-list" class="grid grid-cols-2 gap-2 mb-4">
                         <!-- JS 注入 -->
                     </div>
-                    <div id="reward-assignment" class="hidden space-y-3 p-3 bg-white rounded-xl border border-green-200">
-                        <div class="flex items-center gap-2 text-sm">
-                            <span class="w-20 font-bold text-green-700">第一名獲得:</span>
+                    <div id="reward-assignment" class="hidden space-y-2 p-3 bg-white rounded-xl border border-green-200 shadow-sm">
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-20 font-bold text-green-700">第一名:</span>
                             <select id="rank1-reward" class="flex-1 p-1 border rounded-lg outline-none bg-white"></select>
                         </div>
-                        <div class="flex items-center gap-2 text-sm">
-                            <span class="w-20 font-bold text-green-700">第二名獲得:</span>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-20 font-bold text-green-700">第二名:</span>
                             <select id="rank2-reward" class="flex-1 p-1 border rounded-lg outline-none bg-white"></select>
                         </div>
                     </div>
                 </div>
 
                 <!-- 懲罰區 -->
-                <div class="bg-red-50 p-5 rounded-2xl border border-red-100 shadow-inner">
-                    <h3 id="penalty-title" class="font-black text-red-700 mb-3 text-lg">⚡ 選擇懲罰</h3>
+                <div class="bg-red-50 p-4 rounded-2xl border border-red-100 shadow-inner">
+                    <h3 id="penalty-title" class="font-black text-red-700 mb-3 text-md">⚡ 選擇懲罰</h3>
                     <div class="flex gap-2 mb-3">
-                        <input type="text" id="custom-penalty-input" placeholder="手動輸入處罰內容" class="flex-1 p-2 border rounded-xl text-sm outline-none bg-white">
-                        <button onclick="addCustomPenalty()" class="bg-red-500 text-white px-4 rounded-xl text-sm font-black shadow-sm">新增</button>
+                        <input type="text" id="custom-penalty-input" placeholder="手動輸入" class="flex-1 p-2 border rounded-xl text-xs outline-none bg-white">
+                        <button onclick="addCustomPenalty()" class="bg-red-500 text-white px-3 rounded-xl text-xs font-black shadow-sm">新增</button>
                     </div>
                     <div id="punishments-list" class="grid grid-cols-1 gap-1 max-h-32 overflow-y-auto scroll-hide mb-4">
                         <!-- JS 注入 -->
                     </div>
-                    <div id="penalty-assignment" class="hidden space-y-3 p-3 bg-white rounded-xl border border-red-200">
-                        <div class="flex items-center gap-2 text-sm">
-                            <span class="w-24 font-bold text-red-700">最後一名執行:</span>
+                    <div id="penalty-assignment" class="hidden space-y-2 p-3 bg-white rounded-xl border border-red-200 shadow-sm">
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="w-24 font-bold text-red-700">最後一名:</span>
                             <select id="rank-last-penalty" class="flex-1 p-1 border rounded-lg outline-none bg-white"></select>
                         </div>
-                        <div id="second-last-penalty-row" class="flex items-center gap-2 text-sm">
-                            <span class="w-24 font-bold text-red-700">倒數第二執行:</span>
+                        <div id="second-last-penalty-row" class="flex items-center gap-2 text-xs">
+                            <span class="w-24 font-bold text-red-700">倒數第二:</span>
                             <select id="rank-second-last-penalty" class="flex-1 p-1 border rounded-lg outline-none bg-white"></select>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="flex gap-4">
-                <button onclick="backToStep1()" class="w-1/3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-4 rounded-2xl transition-all text-xl">回上一步</button>
-                <button onclick="preStartDraw()" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl transition-all text-xl shadow-lg active:scale-95">
-                    抽籤決定順序並開始！
+            <div class="flex gap-4 mt-auto">
+                <button onclick="backToStep1()" class="w-1/3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-4 rounded-2xl transition-all text-lg">回上一步</button>
+                <button onclick="preStartDraw()" class="w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-4 rounded-2xl transition-all text-lg shadow-lg active:scale-95">
+                    決定順序並開始
                 </button>
             </div>
         </div>
 
         <!-- 遊戲主畫面 -->
-        <div id="game-screen" class="hidden h-full grid lg:grid-cols-12 gap-4">
-            <!-- 側邊欄 -->
-            <div class="lg:col-span-4 flex flex-col gap-4 overflow-hidden">
-                <div class="bg-white p-4 rounded-2xl shadow-md border border-gray-50 flex-1 overflow-hidden flex flex-col">
-                    <div class="flex justify-between items-center mb-2">
-                        <h2 class="text-xl font-black text-gray-800 tracking-tighter">🏆 積分排行</h2>
-                        <button onclick="confirmEnd()" class="bg-red-500 text-white text-[10px] px-3 py-1.5 rounded-lg font-black shadow-md active:scale-95">結束遊戲</button>
+        <div id="game-screen" class="screen-hidden h-full flex flex-col lg:grid lg:grid-cols-12 gap-4">
+            
+            <!-- 資訊與控制欄 (平板/手機位於上方，電腦位於左側) -->
+            <div class="lg:col-span-4 flex flex-col gap-3 max-h-[38vh] lg:max-h-full">
+                <!-- 控制區：現在輪到 & 骰子 (核心操作位) -->
+                <div class="bg-white p-4 rounded-2xl shadow-md border-b-4 border-indigo-200 text-center flex items-center justify-between lg:flex-col lg:justify-center">
+                    <div class="flex flex-col items-start lg:items-center lg:mb-4">
+                        <span class="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">現在輪到</span>
+                        <div id="current-player-info" class="px-6 py-2 rounded-xl text-white font-black text-xl shadow-md transition-all duration-300">
+                            1號
+                        </div>
                     </div>
-                    <div id="player-stats" class="space-y-2 overflow-y-auto flex-1 scroll-hide">
-                        <!-- JS 注入 -->
+                    
+                    <div class="flex items-center gap-4">
+                        <div id="dice" class="dice" onclick="rollDice()">🎲</div>
+                        <div class="text-left">
+                            <p class="text-gray-400 text-[10px] font-black uppercase leading-none">擲骰結果</p>
+                            <div id="roll-result" class="font-black text-3xl text-indigo-600 italic h-8 leading-tight"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="bg-white p-4 rounded-2xl shadow-md border border-gray-50 text-center">
-                    <div id="current-player-info" class="py-2 rounded-xl text-white font-black text-lg shadow-sm mb-3 transition-all">
-                        1號
+                <!-- 排行榜 (縮小版，確保不擋住棋盤) -->
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex-1 overflow-hidden flex flex-col">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <h2 class="text-sm font-black text-gray-800">🏆 即時積分排行</h2>
+                        <button onclick="confirmEnd()" class="bg-red-500 text-white text-[9px] px-2 py-1 rounded-lg font-black shadow-sm">結束結算</button>
                     </div>
-                    <div class="flex items-center justify-around">
-                        <div id="dice" class="dice" onclick="rollDice()">🎲</div>
-                        <div class="text-left">
-                            <p class="text-gray-400 text-[10px] font-black uppercase">Roll Result</p>
-                            <div id="roll-result" class="font-black text-3xl text-indigo-600 italic h-8 leading-none"></div>
-                        </div>
+                    <div id="player-stats" class="space-y-1 overflow-y-auto flex-1 scroll-hide">
+                        <!-- JS 注入 -->
                     </div>
                 </div>
             </div>
 
-            <!-- 棋盤區域 -->
-            <div class="lg:col-span-8 bg-white rounded-3xl shadow-xl border border-gray-100 flex items-center justify-center p-2">
+            <!-- 棋盤區域 (佔據剩餘空間) -->
+            <div class="lg:col-span-8 flex-1 bg-white rounded-3xl shadow-xl border border-gray-100 flex items-center justify-center p-2 lg:p-4 overflow-hidden">
                 <div id="game-board" class="board-container">
                     <!-- 格子注入 -->
                 </div>
@@ -242,13 +255,12 @@
     <div id="modal-container" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
         <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden transform scale-100 transition-all">
             <div id="modal-header" class="p-4 text-white font-black text-center text-xl">標題</div>
-            <div id="modal-body" class="p-6 text-center text-gray-700 text-md leading-relaxed max-h-[70vh] overflow-y-auto scroll-hide">內容</div>
+            <div id="modal-body" class="p-6 text-center text-gray-700 text-md leading-relaxed max-h-[70vh] overflow-y-auto scroll-hide font-bold">內容</div>
             <div id="modal-footer" class="p-4 bg-gray-50 flex justify-center border-t border-gray-100"></div>
         </div>
     </div>
 
     <script>
-        // --- 核心數據 ---
         const initialRewards = ["糖果 5 顆", "免罰寫1次", "平時加5分", "免課堂回答1次"];
         let punishmentsPool = ["開合跳 10 次", "去任意其他組別進行飯撒", "講笑話(不可以冷場)", "學貓叫 30 秒", "唱一首兒歌"];
         
@@ -284,10 +296,10 @@
         let isRolling = false;
         const TOTAL_CELLS = 20;
 
-        const CHANCE_CELLS = [3, 10, 17];
-        const FATE_CELLS = [6, 13, 19];
+        const CHANCE_CELLS = [3, 10, 17]; // 猜拳
+        const FATE_CELLS = [6, 13, 19];   // 命運事件
 
-        window.onload = () => { renderPlayerInputs(); createBoard(); };
+        window.onload = () => { renderPlayerInputs(); };
 
         function renderPlayerInputs() {
             const count = parseInt(document.getElementById('player-count').value);
@@ -297,7 +309,7 @@
                 container.innerHTML += `
                     <div class="flex items-center gap-2 bg-indigo-50 p-2 rounded-xl border border-indigo-100 shadow-inner">
                         <span class="text-[10px] font-black text-indigo-300">P${i+1}</span>
-                        <input type="number" id="seat-p${i}" placeholder="座號" class="w-full p-2 border rounded-lg text-sm font-black outline-none bg-white">
+                        <input type="number" id="seat-p${i}" placeholder="座號" class="w-full p-1.5 border rounded-lg text-sm font-black outline-none bg-white">
                     </div>
                 `;
             }
@@ -313,27 +325,29 @@
             }
             if(new Set(seats).size !== seats.length) { showModal("提示", "座號不可重複！", "bg-yellow-500"); return; }
             
-            // 更新步驟二說明與懲罰數量顯示
             const desc = document.getElementById('step2-desc');
             const penaltyTitle = document.getElementById('penalty-title');
             const secondLastRow = document.getElementById('second-last-penalty-row');
             
             if (count === 3) {
-                desc.innerText = "選擇 2 個獎勵與 1 個懲罰";
+                desc.innerText = "設定 2 個獎勵與 1 個懲罰";
                 penaltyTitle.innerText = "⚡ 選擇 1 個懲罰";
-                secondLastRow.classList.add('hidden');
+                secondLastRow.classList.add('screen-hidden');
             } else {
-                desc.innerText = "選擇 2 個獎勵與 2 個懲罰";
+                desc.innerText = "設定 2 個獎勵與 2 個懲罰";
                 penaltyTitle.innerText = "⚡ 選擇 2 個懲罰";
-                secondLastRow.classList.remove('hidden');
+                secondLastRow.classList.remove('screen-hidden');
             }
 
-            document.getElementById('setup-step-1').classList.add('hidden');
-            document.getElementById('setup-step-2').classList.remove('hidden');
+            document.getElementById('setup-step-1').classList.add('screen-hidden');
+            document.getElementById('setup-step-2').classList.remove('screen-hidden');
             renderSetupLists();
         }
 
-        function backToStep1() { document.getElementById('setup-step-2').classList.add('hidden'); document.getElementById('setup-step-1').classList.remove('hidden'); }
+        function backToStep1() {
+            document.getElementById('setup-step-2').classList.add('screen-hidden');
+            document.getElementById('setup-step-1').classList.remove('screen-hidden');
+        }
 
         function addCustomPenalty() {
             const input = document.getElementById('custom-penalty-input');
@@ -342,8 +356,8 @@
 
         function renderSetupLists() {
             const rList = document.getElementById('rewards-list'), pList = document.getElementById('punishments-list');
-            rList.innerHTML = initialRewards.map(r => `<label class="flex items-center space-x-2 bg-white p-2 rounded-lg border text-xs cursor-pointer shadow-sm"><input type="checkbox" name="reward" value="${r}" onchange="handleRewardChange()" class="w-3 h-3 text-green-600"> <span class="truncate">${r}</span></label>`).join('');
-            pList.innerHTML = punishmentsPool.map(p => `<label class="flex items-center space-x-2 bg-white p-2 rounded-lg border text-xs cursor-pointer shadow-sm"><input type="checkbox" name="punishment" value="${p}" onchange="handlePenaltyChange()" class="w-3 h-3 text-red-600"> <span class="truncate">${p}</span></label>`).join('');
+            rList.innerHTML = initialRewards.map(r => `<label class="flex items-center space-x-1.5 bg-white p-1.5 rounded-lg border text-[10px] cursor-pointer shadow-sm"><input type="checkbox" name="reward" value="${r}" onchange="handleRewardChange()" class="w-3 h-3 text-green-600"> <span class="truncate">${r}</span></label>`).join('');
+            pList.innerHTML = punishmentsPool.map(p => `<label class="flex items-center space-x-1.5 bg-white p-1.5 rounded-lg border text-[10px] cursor-pointer shadow-sm"><input type="checkbox" name="punishment" value="${p}" onchange="handlePenaltyChange()" class="w-3 h-3 text-red-600"> <span class="truncate">${p}</span></label>`).join('');
         }
 
         function handleRewardChange() {
@@ -387,7 +401,7 @@
             const penaltyLimit = (count === 3) ? 1 : 2;
             
             if (selectedRewards.length < 2 || selectedPunishments.length < penaltyLimit) { 
-                showModal("提示", `請選好 2 個獎勵與 ${penaltyLimit} 個懲罰項目！`, "bg-yellow-500"); 
+                showModal("設定未完成", `請選好獎懲項目並分配排名！`, "bg-yellow-500"); 
                 return; 
             }
             
@@ -398,26 +412,35 @@
 
             let rawSeats = []; for(let i=0; i<count; i++) rawSeats.push(document.getElementById(`seat-p${i}`).value);
             
-            let drawBody = `<div class="flex flex-col items-center gap-4 py-8"><p class="text-gray-500 font-bold mb-4 italic">🎲 正在隨機決定先後順序...</p><div id="shuffle-display" class="flex flex-wrap justify-center gap-3">${rawSeats.map(s => `<div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center font-black text-indigo-600 text-lg border-2 border-indigo-200">${s}</div>`).join('')}</div></div>`;
-            showModal("遊戲開始抽籤", drawBody, "bg-indigo-600", null, true);
+            let drawBody = `<div class="flex flex-col items-center gap-4 py-8"><p class="text-gray-500 font-bold mb-4 italic text-sm">🎲 正在決定出發順序...</p><div id="shuffle-display" class="flex flex-wrap justify-center gap-3">${rawSeats.map(s => `<div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center font-black text-indigo-600 border-2 border-indigo-200">${s}</div>`).join('')}</div></div>`;
+            showModal("順序抽籤", drawBody, "bg-indigo-600", null, true);
             
             let counter = 0;
             const interval = setInterval(() => {
                 const disp = document.getElementById('shuffle-display'); if(!disp) return clearInterval(interval);
                 const items = Array.from(disp.children).sort(() => Math.random() - 0.5); disp.innerHTML = ''; items.forEach(it => disp.appendChild(it));
-                if(++counter > 15) {
+                if(++counter > 12) {
                     clearInterval(interval);
                     const shuffled = rawSeats.sort(() => Math.random() - 0.5);
                     const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#475569'];
                     players = shuffled.map((s, idx) => ({ id: idx, seatNo: s, color: colors[idx % colors.length], pos: 0, score: 0, skipNextTurn: false }));
                     
-                    disp.innerHTML = players.map((p, i) => `<div class="w-14 h-14 bg-green-500 text-white rounded-xl flex flex-col items-center justify-center font-black shadow-lg animate-bounce text-xs"><span class="text-[8px] opacity-70">#${i+1}</span><span>${p.seatNo}號</span></div>`).join('');
-                    document.getElementById('modal-footer').innerHTML = `<button onclick="closeModal(); document.getElementById('setup-step-2').classList.add('hidden'); document.getElementById('game-screen').classList.remove('hidden'); updateUI(); placeTokens();" class="bg-green-600 text-white px-10 py-3 rounded-2xl font-black shadow-lg">進入遊戲！</button>`;
+                    disp.innerHTML = players.map((p, i) => `<div class="w-12 h-12 bg-green-500 text-white rounded-xl flex flex-col items-center justify-center font-black shadow-lg animate-bounce text-[10px]"><span class="opacity-70">#${i+1}</span><span>${p.seatNo}號</span></div>`).join('');
+                    document.getElementById('modal-footer').innerHTML = `<button onclick="closeModal(); startGameUI();" class="bg-green-600 text-white px-10 py-3 rounded-2xl font-black shadow-lg">進入遊戲！</button>`;
                 }
             }, 100);
         }
 
-        // --- 遊戲邏輯 ---
+        function startGameUI() {
+            document.getElementById('setup-step-2').classList.add('screen-hidden');
+            const gameScreen = document.getElementById('game-screen');
+            gameScreen.classList.remove('screen-hidden');
+            createBoard();
+            updateUI();
+            placeTokens();
+        }
+
+        // --- 核心遊戲邏輯 ---
         function createBoard() {
             const board = document.getElementById('game-board'); board.innerHTML = '';
             const posMap = [];
@@ -430,7 +453,7 @@
                 if(idx === 0) { type = "🚩 起點"; cell.classList.add('cell-0'); }
                 else if(CHANCE_CELLS.includes(idx)) { type = "❓ 機會"; cell.classList.add('cell-chance'); }
                 else if(FATE_CELLS.includes(idx)) { type = "✨ 命運"; cell.classList.add('cell-fate'); }
-                cell.innerHTML = `<div class="mb-1 opacity-60">${type}</div><div id="tokens-${idx}" class="flex flex-wrap justify-center gap-0.5"></div>`;
+                cell.innerHTML = `<div class="mb-1 opacity-60 scale-75 uppercase text-[8px]">${type}</div><div id="tokens-${idx}" class="flex flex-wrap justify-center gap-0.5"></div>`;
                 board.appendChild(cell);
             });
         }
@@ -438,14 +461,14 @@
         function updateUI() {
             const stats = document.getElementById('player-stats');
             stats.innerHTML = [...players].sort((a,b) => b.score - a.score).map((p, idx) => `
-                <div class="p-3 rounded-xl bg-gray-50 border-l-8 flex justify-between items-center shadow-sm" style="border-color: ${p.color}">
-                    <span class="font-black text-xs text-gray-800">${p.seatNo}號</span>
-                    <span class="bg-white px-3 py-1 rounded-full text-[10px] font-black shadow-sm">${p.score} 分</span>
+                <div class="p-2 rounded-xl bg-gray-50 border-l-4 flex justify-between items-center shadow-sm" style="border-color: ${p.color}">
+                    <span class="font-black text-[10px] text-gray-800">${p.seatNo}號</span>
+                    <span class="bg-white px-2 py-0.5 rounded-full text-[10px] font-black shadow-sm">${p.score} 分</span>
                 </div>
             `).join('');
             const p = players[currentPlayerIndex];
             const info = document.getElementById('current-player-info');
-            info.innerText = `輪到：${p.seatNo}號`;
+            info.innerText = `${p.seatNo}號`;
             info.style.backgroundColor = p.color;
         }
 
@@ -460,7 +483,8 @@
         function rollDice() {
             if (isRolling) return;
             const p = players[currentPlayerIndex];
-            if (p.skipNextTurn) { p.skipNextTurn = false; showModal("暫停一回合", `${p.seatNo}號 本回合停止一次！`, "bg-gray-500", nextTurn); return; }
+            if (p.skipNextTurn) { p.skipNextTurn = false; showModal("暫停回合", `${p.seatNo}號 本回合停止一次！`, "bg-gray-500", nextTurn); return; }
+            
             isRolling = true;
             const d = document.getElementById('dice'), res = document.getElementById('roll-result');
             d.classList.add('rolling'); res.innerText = "";
@@ -475,7 +499,7 @@
 
         function handleCellLanding(pos) {
             if (pos === 0) {
-                showModal("🚩 起點", "路過起點，補給積分！<br><span class='text-2xl font-black text-green-600'>積分 +50</span>", "bg-green-500", () => { players[currentPlayerIndex].score += 50; nextTurn(); });
+                showModal("🚩 起點", "路過起點，獎勵積分！<br><span class='text-2xl font-black text-green-600'>積分 +50</span>", "bg-green-500", () => { players[currentPlayerIndex].score += 50; nextTurn(); });
             } else if (CHANCE_CELLS.includes(pos)) {
                 handleChanceEvent();
             } else if (FATE_CELLS.includes(pos)) {
@@ -485,10 +509,10 @@
 
         function handleQuiz() {
             const q = questionsPool[Math.floor(Math.random() * questionsPool.length)], p = players[currentPlayerIndex];
-            let body = `<p class="text-xl mb-4 font-black text-gray-800">${q.q}</p><div class="grid gap-2">`;
-            q.a.forEach((ans, i) => { body += `<button onclick="checkAnswer(${i}, ${q.correct})" class="w-full py-4 px-6 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-100 rounded-2xl text-left font-black text-indigo-700 active:scale-95 transition-all font-bold">${i+1}. ${ans}</button>`; });
+            let body = `<p class="text-lg mb-4 font-black text-gray-800">${q.q}</p><div class="grid gap-2">`;
+            q.a.forEach((ans, i) => { body += `<button onclick="checkAnswer(${i}, ${q.correct})" class="w-full py-4 px-6 bg-indigo-50 hover:bg-indigo-100 border-2 border-indigo-100 rounded-2xl text-left font-black text-indigo-700 active:scale-95 transition-all">${i+1}. ${ans}</button>`; });
             body += `</div>`;
-            showModal(`${p.seatNo}號 的挑戰`, body, "bg-indigo-600", null, true);
+            showModal(`${p.seatNo}號 的大挑戰`, body, "bg-indigo-600", null, true);
         }
 
         window.checkAnswer = (choice, correct) => {
@@ -497,11 +521,11 @@
         };
 
         function handleChanceEvent() {
-            let body = `<p class="mb-6 font-bold text-lg text-gray-700">與系統猜拳大賽！贏了可獲得 <span class="text-green-600">+150 分</span></p>`;
-            body += `<div class="grid grid-cols-3 gap-4">
-                <button onclick="playRPS(0)" class="rps-btn">✊<span class="text-xs mt-2">石頭</span></button>
-                <button onclick="playRPS(1)" class="rps-btn">✋<span class="text-xs mt-2">布</span></button>
-                <button onclick="playRPS(2)" class="rps-btn">✌️<span class="text-xs mt-2">剪刀</span></button>
+            let body = `<p class="mb-4 font-bold text-md text-gray-700">與系統猜拳！贏了獎勵 <span class="text-green-600">+150 分</span></p>`;
+            body += `<div class="grid grid-cols-3 gap-2">
+                <button onclick="playRPS(0)" class="rps-btn">✊</button>
+                <button onclick="playRPS(1)" class="rps-btn">✋</button>
+                <button onclick="playRPS(2)" class="rps-btn">✌️</button>
             </div>`;
             showModal("機會 ❓ 猜拳挑戰", body, "bg-yellow-500", null, true);
         }
@@ -535,8 +559,8 @@
 
         function promptTargetSelect(label, callback) {
             const p = players[currentPlayerIndex], others = players.filter(o => o.id !== p.id);
-            let body = `<p class="mb-4 font-bold text-gray-700">請選擇對象執行 [${label}]：</p><div class="grid grid-cols-2 gap-3">`;
-            others.forEach(o => { body += `<button onclick="executeTarget(${o.id})" class="p-3 border-2 rounded-xl font-black text-sm" style="border-color:${o.color}; color:${o.color}">${o.seatNo}號 (${o.score}分)</button>`; });
+            let body = `<p class="mb-3 font-bold text-gray-700 text-sm">請選擇對象 [${label}]：</p><div class="grid grid-cols-2 gap-2">`;
+            others.forEach(o => { body += `<button onclick="executeTarget(${o.id})" class="p-2 border-2 rounded-xl font-black text-xs" style="border-color:${o.color}; color:${o.color}">${o.seatNo}號 (${o.score}分)</button>`; });
             body += `</div>`;
             window.tempCB = callback; showModal("選擇指定目標", body, "bg-gray-800", null, true);
         }
@@ -545,74 +569,35 @@
 
         function nextTurn() { currentPlayerIndex = (currentPlayerIndex + 1) % players.length; isRolling = false; updateUI(); }
         
-        function confirmEnd() { showModal("遊戲結束", "確定要結束遊戲並結算最終名次嗎？", "bg-gray-700", endGame); }
+        function confirmEnd() { showModal("結算提醒", "確定要結束遊戲並結算最終名次嗎？", "bg-gray-700", endGame); }
 
         function endGame() {
             const scoreGroups = {}; 
-            players.forEach(p => { 
-                if(!scoreGroups[p.score]) scoreGroups[p.score] = []; 
-                scoreGroups[p.score].push(p); 
-            });
+            players.forEach(p => { if(!scoreGroups[p.score]) scoreGroups[p.score] = []; scoreGroups[p.score].push(p); });
             const tiedScores = Object.keys(scoreGroups).map(Number).filter(s => scoreGroups[s].length > 1).sort((a,b) => b-a);
             
             if (tiedScores.length > 0) {
-                let tieBody = `<div class="flex flex-col items-center gap-4 py-6"><p class="text-indigo-600 font-black animate-pulse text-lg">⚖️ 檢測到積分相同！局部抽籤決定名次中...</p><div class="space-y-3 w-full">${tiedScores.map(s => `<div class="p-3 bg-amber-50 rounded-xl border border-amber-200 tie-box"><div id="group-${s}" class="flex flex-wrap justify-center gap-2">${scoreGroups[s].map(p => `<div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center font-black border shadow-sm">${p.seatNo}號</div>`).join('')}</div></div>`).join('')}</div></div>`;
-                showModal("公平結算抽籤", tieBody, "bg-indigo-600", null, true);
-                
-                let shuffles = 0; 
-                const interval = setInterval(() => {
-                    tiedScores.forEach(s => { 
-                        const el = document.getElementById(`group-${s}`); 
-                        if(!el) return; 
-                        const items = Array.from(el.children).sort(() => Math.random() - 0.5); 
-                        el.innerHTML = ''; items.forEach(it => el.appendChild(it)); 
-                    });
-                    if(++shuffles > 15) { 
-                        clearInterval(interval); 
-                        const finalOrder = []; 
-                        const sorted = Object.keys(scoreGroups).map(Number).sort((a,b) => b-a); 
-                        sorted.forEach(s => finalOrder.push(...scoreGroups[s].sort(() => Math.random() - 0.5))); 
-                        setTimeout(() => renderFinal(finalOrder), 300);
-                    }
+                let tieBody = `<div class="flex flex-col items-center gap-4 py-6"><p class="text-indigo-600 font-black animate-pulse text-lg">⚖️ 同分抽籤決定名次中...</p><div class="space-y-3 w-full">${tiedScores.map(s => `<div class="p-3 bg-amber-50 rounded-xl border border-amber-200 tie-box"><div id="group-${s}" class="flex flex-wrap justify-center gap-2">${scoreGroups[s].map(p => `<div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center font-black border shadow-sm">${p.seatNo}號</div>`).join('')}</div></div>`).join('')}</div></div>`;
+                showModal("名次局部抽籤", tieBody, "bg-indigo-600", null, true);
+                let shuffles = 0; const interval = setInterval(() => {
+                    tiedScores.forEach(s => { const el = document.getElementById(`group-${s}`); if(!el) return; const items = Array.from(el.children).sort(() => Math.random() - 0.5); el.innerHTML = ''; items.forEach(it => el.appendChild(it)); });
+                    if(++shuffles > 15) { clearInterval(interval); const finalOrder = []; const sorted = Object.keys(scoreGroups).map(Number).sort((a,b) => b-a); sorted.forEach(s => finalOrder.push(...scoreGroups[s].sort(() => Math.random() - 0.5))); setTimeout(() => renderFinal(finalOrder), 300); }
                 }, 100);
-            } else {
-                renderFinal([...players].sort((a, b) => b.score - a.score));
-            }
+            } else renderFinal([...players].sort((a, b) => b.score - a.score));
         }
 
         function renderFinal(rank) {
             const pCount = rank.length;
-            let body = `<div class="text-left space-y-3">`;
-            
+            let body = `<div class="text-left space-y-2">`;
             rank.forEach((p, idx) => {
-                let prize = "😐 安全過關"; 
-                let color = "text-gray-400";
-                
-                // 獎懲分配邏輯
-                if(idx === 0) { 
-                    prize = `👑 <b>冠軍：【${rewardRankMap[1]}】</b>`; 
-                    color = "text-green-600"; 
-                }
-                else if(idx === 1) { 
-                    prize = `🥈 <b>亞軍：【${rewardRankMap[2]}】</b>`; 
-                    color = "text-blue-600"; 
-                }
-                else if(idx === pCount - 1) { 
-                    prize = `💀 <b>墊底：【${penaltyRankMap.last}】</b>`; 
-                    color = "text-red-600"; 
-                }
-                else if(pCount > 3 && idx === pCount - 2) { 
-                    prize = `⚠️ <b>倒二：【${penaltyRankMap.secondLast}】</b>`; 
-                    color = "text-orange-600"; 
-                }
-                
-                body += `<div class="p-4 border-2 rounded-2xl bg-white shadow-sm flex items-center justify-between" style="border-color:${p.color}">
-                    <div><h4 class="font-black text-xs">第 ${idx+1} 名 - ${p.seatNo}號</h4><p class="${color} text-xs mt-1">${prize}</p></div>
-                    <div class="font-black text-sm text-indigo-500">${p.score}分</div>
-                </div>`;
+                let prize = "😐 安全過關"; let color = "text-gray-400";
+                if(idx === 0) { prize = `👑 <b>冠軍：【${rewardRankMap[1]}】</b>`; color = "text-green-600"; }
+                else if(idx === 1) { prize = `🥈 <b>亞軍：【${rewardRankMap[2]}】</b>`; color = "text-blue-600"; }
+                else if(idx === pCount - 1) { prize = `💀 <b>墊底：【${penaltyRankMap.last}】</b>`; color = "text-red-600"; }
+                else if(pCount > 3 && idx === pCount - 2) { prize = `⚠️ <b>倒二：【${penaltyRankMap.secondLast}】</b>`; color = "text-orange-600"; }
+                body += `<div class="p-3 border-2 rounded-2xl bg-white shadow-sm flex items-center justify-between" style="border-color:${p.color}"><div><h4 class="font-black text-xs">第 ${idx+1} 名 - ${p.seatNo}號</h4><p class="${color} text-[10px] mt-0.5">${prize}</p></div><div class="font-black text-xs text-indigo-500">${p.score}分</div></div>`;
             });
             body += `</div>`;
-            
             const m = document.getElementById('modal-container');
             document.getElementById('modal-header').innerText = "🏆 最終結算清單";
             document.getElementById('modal-header').className = "p-4 text-white font-black text-center text-xl bg-gray-800";
